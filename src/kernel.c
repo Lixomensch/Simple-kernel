@@ -81,7 +81,7 @@ void put_char(char c)
     }
 }
 
-void printf(const char *str)
+void kprint(const char *str)
 {
     for (int i = 0; str[i] != '\0'; ++i)
     {

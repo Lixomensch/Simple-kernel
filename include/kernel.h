@@ -20,4 +20,4 @@ void outb(uint16_t port, uint8_t value);
 uint8_t read_key_scancode();
 void reboot_system();
 void put_char(char c);
-void printf(const char *str);
+void kprint(const char *str);

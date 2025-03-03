@@ -2,11 +2,11 @@
 
 void kmain()
 {
-    printf("  +-----------------------------------------------+\n");
-    printf("  |                  ::JP OS::                    |\n");
-    printf("  +-----------------------------------------------+\n");
-    printf("  |        PRESSIONE [ESC] PARA REINICIAR         |\n");
-    printf("  +-----------------------------------------------+\n");
+    kprint("  +-----------------------------------------------+\n");
+    kprint("  |                  ::JP OS::                    |\n");
+    kprint("  +-----------------------------------------------+\n");
+    kprint("  |        PRESSIONE [ESC] PARA REINICIAR         |\n");
+    kprint("  +-----------------------------------------------+\n");
 
     char character;
     uint8_t scancode = read_key_scancode();
@@ -59,7 +59,7 @@ void kmain()
         // Condição para sair do loop interno
         if (scancode == ESC_SCANCODE)
         {
-            printf("\nReiniciando o sistema...\n");
+            kprint("\nReiniciando o sistema...\n");
             reboot_system();
         }
     }
