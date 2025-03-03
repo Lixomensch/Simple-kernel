@@ -1,52 +1,67 @@
-# Configurações do compilador
+# ==================================================================
+# Configurações do compilador e flags
+# ==================================================================
 CC = gcc
-LD = i686-elf-ld
-AS = nasm
-CFLAGS = -ffreestanding -m32 -nostdlib -lgcc -Wall -Wextra
-ASFLAGS = -f elf
-LDFLAGS = -T linker.ld
+AS = as
+LD = ld
+TARGET = build/kernel.bin
 
-# Diretórios
-SRC_DIR = src
+# Flags de compilação
+DEBUG = -g
+OPT = -O1
+WARN = -Wall -Werror
+CFLAGS = $(DEBUG) $(OPT) $(WARN) -m32 -ffreestanding -fno-builtin -fno-exceptions
+ASFLAGS = --32
+LDFLAGS = -melf_i386
+
+# ==================================================================
+# Caminhos e diretórios
+# ==================================================================
 BUILD_DIR = build
-INCLUDE_DIR = include
+SRC_DIR = src
 
-# Arquivos-fonte
-SRCS = $(wildcard $(SRC_DIR)/kernel/*.c)
+# ==================================================================
+# Arquivos de fontes e objetos
+# ==================================================================
+C_SRCS = $(wildcard $(SRC_DIR)/*.c)
+S_SRCS = $(wildcard $(SRC_DIR)/*.s)
 
-# Arquivos-objeto
-OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
+# Criar variáveis de objetos, com a pasta de objetos
+C_OBJS = $(C_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
+S_OBJS = $(S_SRCS:$(SRC_DIR)/%.s=$(BUILD_DIR)/%.o)
+OBJS = $(C_OBJS) $(S_OBJS)
 
-# Nome do kernel binário final
-KERNEL_BIN = $(BUILD_DIR)/kernel.bin
+# ==================================================================
+# Compilação de arquivos Assembly
+# ==================================================================
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.s | $(BUILD_DIR)
+	$(AS) $(ASFLAGS) -o $@ $<
 
-# Nome da ISO gerada
-ISO_NAME = kernel.iso
+# ==================================================================
+# Compilação de arquivos C
+# ==================================================================
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-.PHONY: all clean run iso
+# ==================================================================
+# Linkagem
+# ==================================================================
+$(TARGET): linker.ld $(OBJS) | $(BUILD_DIR)
+	$(LD) $(LDFLAGS) -T $< -o $@ $(OBJS)
 
-# Alvo padrão: compilar tudo
-all: $(KERNEL_BIN)
+# ==================================================================
+# Instalação
+# ==================================================================
+install: $(TARGET)
+	sudo cp $(TARGET) /boot/kernel.bin
 
-# Compilar arquivos .c
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
-
-# Linkar o kernel
-$(KERNEL_BIN): $(OBJS)
-	$(LD) $(LDFLAGS) -o $@ $^
-
-# Criar a ISO
-iso: $(KERNEL_BIN)
-	@mkdir -p iso/boot
-	@cp $(KERNEL_BIN) iso/boot/
-	grub-mkrescue -o $(ISO_NAME) iso/
-
-# Limpar arquivos compilados
+# ==================================================================
+# Limpeza
+# ==================================================================
 clean:
-	rm -rf $(BUILD_DIR) $(ISO_NAME) iso/boot/kernel.bin
+	@rm -rf $(BUILD_DIR) $(TARGET)
 
-# Rodar no QEMU
-run: iso
-	qemu-system-x86_64 -cdrom $(ISO_NAME)
+# ==================================================================
+# Regras especiais
+# ==================================================================
+.PHONY: clean install

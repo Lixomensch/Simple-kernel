@@ -1,76 +1,90 @@
-#include "kernel.h"
+#include "../include/kernel.h"
 
-void kmain(void *multiboot_structure, unsigned int magicnumber)
+int cursor_x = 0;
+int cursor_y = 0;
+
+void move_cursor(int x, int y)
 {
-    printf("  +-----------------------------------------------+\n");
-    printf("  |                  ::JP OS::                    |\n");
-    printf("  +-----------------------------------------------+\n");
-    printf("  |        PRESSIONE [ESC] PARA REINICIAR         |\n");
-    printf("  +-----------------------------------------------+\n");
+    cursor_x = x;
+    cursor_y = y;
+}
 
-    while (1)
+void advance_cursor()
+{
+    cursor_x++;
+    if (cursor_x >= VGA_WIDTH)
     {
-        uint8_t scancode = read_key_scancode();
+        cursor_x = 0;
+        cursor_y++;
+    }
+    if (cursor_y >= VGA_HEIGHT)
+    {
+        cursor_y = VGA_HEIGHT - 1;
+    }
+}
 
-        // Verifica se o código de varredura corresponde à tecla ESC para reiniciar o sistema
-        if (scancode == ESC_SCANCODE)
+void clear_screen()
+{
+    volatile uint16_t *VideoMemory = VGA_MEMORY;
+    for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; ++i)
+    {
+        VideoMemory[i] = (0x07 << 8) | ' ';
+    }
+    cursor_x = 0;
+    cursor_y = 0;
+}
+
+uint8_t inb(uint16_t port)
+{
+    uint8_t result;
+    asm volatile("inb %1, %0" : "=a"(result) : "Nd"(port));
+    return result;
+}
+
+void outb(uint16_t port, uint8_t value)
+{
+    asm volatile("outb %0, %1" : : "a"(value), "Nd"(port));
+}
+
+uint8_t read_key_scancode()
+{
+    uint8_t scancode = 0;
+    while ((inb(KEYBOARD_STATUS_PORT) & 0x01) == 0)
+        ;
+    scancode = inb(KEYBOARD_DATA_PORT);
+    return scancode;
+}
+
+void reboot_system()
+{
+    outb(KEYBOARD_STATUS_PORT, 0xFE);
+}
+
+void put_char(char c)
+{
+    unsigned short *VideoMemory = (unsigned short *)VGA_MEMORY;
+
+    if (c == '\n')
+    {
+        cursor_x = 0;
+        cursor_y++;
+        if (cursor_y >= VGA_HEIGHT)
         {
-            printf("\nReiniciando o sistema...\n");
-            reboot_system();
+            cursor_y = VGA_HEIGHT - 1;
         }
-        else
-        {
-            char character;
+    }
+    else
+    {
+        int index = cursor_y * VGA_WIDTH + cursor_x;
+        VideoMemory[index] = (VideoMemory[index] & 0xFF00) | c;
+        advance_cursor();
+    }
+}
 
-            // Loop de digitação
-            while (1)
-            {
-                scancode = read_key_scancode();
-
-                // Verifica teclas A-Z
-                if (scancode >= 0x1E && scancode <= 0x36)
-                {
-                    character = 'a' + (scancode - 0x1E);
-                    put_char(character);
-                }
-                // Verifica teclas 0-9
-                else if (scancode >= 0x10 && scancode <= 0x19)
-                {
-                    character = '0' + (scancode - 0x10);
-                    put_char(character);
-                }
-                // Verifica a tecla Enter
-                else if (scancode == 0x1C)
-                {
-                    put_char('\n');
-                }
-                // Verifica a tecla Espaço
-                else if (scancode == 0x39)
-                {
-                    put_char(' ');
-                }
-                // Verifica a tecla Backspace
-                else if (scancode == 0x0E)
-                {
-                    if (cursor_x > 0) // Verifica se não está no início da linha
-                    {
-                        cursor_x--;
-                        put_char(' ');
-                        cursor_x--;
-                    }
-                    else if (cursor_y > 0) // Verifica se não está na primeira linha
-                    {
-                        cursor_y--;
-                        cursor_x = VGA_WIDTH - 1; // Move para o final da linha anterior
-                        put_char(' ');
-                        cursor_x = VGA_WIDTH - 1;
-                    }
-                }
-
-                // Condição para sair do loop interno
-                if (scancode == ESC_SCANCODE)
-                    break;
-            }
-        }
+void printf(const char *str)
+{
+    for (int i = 0; str[i] != '\0'; ++i)
+    {
+        put_char(str[i]);
     }
 }
