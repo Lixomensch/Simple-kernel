@@ -25,7 +25,7 @@ void advance_cursor()
 
 void clear_screen()
 {
-    volatile uint16_t *VideoMemory = VGA_MEMORY;
+    unsigned short *VideoMemory = (unsigned short *)VGA_MEMORY;
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; ++i)
     {
         VideoMemory[i] = (0x07 << 8) | ' ';

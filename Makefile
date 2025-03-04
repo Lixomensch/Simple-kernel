@@ -59,7 +59,7 @@ install: $(TARGET)
 # Limpeza
 # ==================================================================
 clean:
-	@rm -rf $(BUILD_DIR) $(TARGET)
+	@find $(BUILD_DIR) -mindepth 1 ! -name ".gitkeep" -delete
 
 # ==================================================================
 # Regras especiais

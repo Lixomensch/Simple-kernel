@@ -1,12 +1,13 @@
 #include "../include/kernel.h"
 
-void kmain()
+void kmain(void *multiboot_structure, unsigned int magicnumber)
 {
-    kprint("  +-----------------------------------------------+\n");
-    kprint("  |                  ::JP OS::                    |\n");
-    kprint("  +-----------------------------------------------+\n");
-    kprint("  |        PRESSIONE [ESC] PARA REINICIAR         |\n");
-    kprint("  +-----------------------------------------------+\n");
+    clear_screen();
+    kprint("+-----------------------------------------------+\n");
+    kprint("|                    JP OS                      |\n");
+    kprint("+-----------------------------------------------+\n");
+    kprint("|        PRESSIONE [ESC] PARA REINICIAR         |\n");
+    kprint("+-----------------------------------------------+\n");
 
     char character;
     uint8_t scancode = read_key_scancode();
@@ -57,7 +58,7 @@ void kmain()
         }
 
         // Condição para sair do loop interno
-        if (scancode == ESC_SCANCODE)
+        if (scancode == 0x01)
         {
             kprint("\nReiniciando o sistema...\n");
             reboot_system();
