@@ -11,7 +11,6 @@ typedef unsigned long long uint64_t;
 #define VGA_HEIGHT 25
 #define VGA_MEMORY 0xB8000
 
-#define KEYBOARD_DATA_PORT 0x60
 #define KEYBOARD_STATUS_PORT 0x64
 
 extern int cursor_x;

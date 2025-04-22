@@ -34,30 +34,24 @@ void clear_screen()
     cursor_y = 0;
 }
 
-uint8_t inb(uint16_t port)
-{
-    uint8_t result;
-    asm volatile("inb %1, %0" : "=a"(result) : "Nd"(port));
-    return result;
-}
-
-void outb(uint16_t port, uint8_t value)
-{
-    asm volatile("outb %0, %1" : : "a"(value), "Nd"(port));
-}
-
-uint8_t read_key_scancode()
-{
-    uint8_t scancode = 0;
-    while ((inb(KEYBOARD_STATUS_PORT) & 0x01) == 0)
-        ;
-    scancode = inb(KEYBOARD_DATA_PORT);
-    return scancode;
-}
-
 void reboot_system()
 {
     outb(KEYBOARD_STATUS_PORT, 0xFE);
+}
+
+void scroll_screen_up()
+{
+    unsigned short *VideoMemory = (unsigned short *)VGA_MEMORY;
+
+    for (int i = 0; i < (VGA_HEIGHT - 1) * VGA_WIDTH; i++)
+    {
+        VideoMemory[i] = VideoMemory[i + VGA_WIDTH];
+    }
+
+    for (int i = (VGA_HEIGHT - 1) * VGA_WIDTH; i < VGA_HEIGHT * VGA_WIDTH; i++)
+    {
+        VideoMemory[i] = 0;
+    }
 }
 
 void put_char(char c)
@@ -71,14 +65,32 @@ void put_char(char c)
         if (cursor_y >= VGA_HEIGHT)
         {
             cursor_y = VGA_HEIGHT - 1;
+            scroll_screen_up();
         }
+    }
+    else if (c == '\b')
+    {
+        if (cursor_x > 0)
+        {
+            cursor_x--;
+        }
+        else if (cursor_y > 0)
+        {
+            cursor_y--;
+            cursor_x = VGA_WIDTH - 1;
+        }
+        int index = cursor_y * VGA_WIDTH + cursor_x;
+        VideoMemory[index] = (VideoMemory[index] & 0xFF00);
+        advance_cursor();
+        return;
     }
     else
     {
         int index = cursor_y * VGA_WIDTH + cursor_x;
         VideoMemory[index] = (VideoMemory[index] & 0xFF00) | c;
-        advance_cursor();
     }
+
+    advance_cursor();
 }
 
 void kprint(const char *str)
