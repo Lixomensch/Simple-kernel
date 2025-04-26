@@ -81,7 +81,6 @@ void put_char(char c)
         }
         int index = cursor_y * VGA_WIDTH + cursor_x;
         VideoMemory[index] = (VideoMemory[index] & 0xFF00);
-        advance_cursor();
         return;
     }
     else

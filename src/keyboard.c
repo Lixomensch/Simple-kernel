@@ -32,7 +32,6 @@ static const char shift_map[128] = {
 #define SC_SHIFT_LEFT 0x2A
 #define SC_SHIFT_RIGHT 0x36
 #define SC_CAPSLOCK 0x3A
-#define SC_ALTGR 0x38
 
 #define KEY_RELEASE(sc) ((sc) & 0x80)
 
