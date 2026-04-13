@@ -3,6 +3,7 @@
 #include "../include/string.h"
 #include "../include/timer.h"
 #include "../include/pmm.h"
+#include "../include/vfs.h"
 
 typedef void (*CommandFunction)(const char *args);
 
@@ -21,6 +22,8 @@ void command_help(const char *args) {
   kprint(" - uptime : mostra tempo ligado\n");
   kprint(" - color  : muda a cor do texto\n");
   kprint(" - meminfo: mostra memoria disponivel\n");
+  kprint(" - ls     : lista arquivos\n");
+  kprint(" - cat    : le o conteudo de um arquivo\n");
   kprint(" - reboot : reinicia o sistema\n");
 }
 
@@ -69,11 +72,63 @@ void command_meminfo(const char *args) {
   kprint(" KB\n");
 }
 
+void command_ls(const char *args) {
+  if (!fs_root) {
+    kprint("Nenhum sistema de arquivos montado.\n");
+    return;
+  }
+  
+  int i = 0;
+  struct dirent *node = 0;
+  while ((node = vfs_readdir(fs_root, i)) != 0) {
+    kprint(" ");
+    kprint(node->name);
+    kprint("\n");
+    i++;
+  }
+}
+
+void command_cat(const char *args) {
+  if (!fs_root) return;
+  if (!args || args[0] == '\0') {
+    kprint("Uso: cat <arquivo>\n");
+    return;
+  }
+  
+  
+  char filename[128];
+  int i=0;
+  while(args[i] && args[i] != ' ' && i < 127) {
+    filename[i] = args[i];
+    i++;
+  }
+  filename[i] = '\0';
+  
+  fs_node_t *fsnode = vfs_finddir(fs_root, filename);
+  if (!fsnode) {
+    kprint("Arquivo não encontrado.\n");
+    return;
+  }
+  
+  if ((fsnode->flags & 0x07) == FS_DIRECTORY) {
+    kprint("Erro: e um diretorio.\n");
+    return;
+  }
+  
+  char buffer[512];
+  uint32_t sz = vfs_read(fsnode, 0, 511, (uint8_t*)buffer);
+  buffer[sz] = '\0';
+  
+  kprint(buffer);
+  kprint("\n");
+}
+
 Command command_table[] = {
     {"help", command_help},     {"clear", command_clear},
     {"echo", command_echo},     {"reboot", command_reboot},
     {"uptime", command_uptime}, {"color", command_color},
-    {"meminfo", command_meminfo},
+    {"meminfo", command_meminfo}, {"ls", command_ls},
+    {"cat", command_cat},
 };
 
 const int command_count = sizeof(command_table) / sizeof(Command);

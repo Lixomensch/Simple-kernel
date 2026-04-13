@@ -18,6 +18,7 @@ void move_cursor(int x, int y);
 void advance_cursor();
 void clear_screen();
 void set_terminal_color(uint8_t color);
+void kernel_hex_dump(uint8_t* ptr, int count);
 uint8_t inb(uint16_t port);
 void outb(uint16_t port, uint8_t value);
 uint8_t read_key_scancode();

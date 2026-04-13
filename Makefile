@@ -56,12 +56,17 @@ install: $(TARGET)
 	sudo cp $(TARGET) /boot/kernel.bin
 
 # ==================================================================
-# Limpeza
+# Disco e Execução
 # ==================================================================
+build/disk.img: | $(BUILD_DIR)
+	dd if=/dev/zero of=build/disk.img bs=1M count=1
+	printf "MENSAGEM SECRETA NO HD VIA SETOR ZERO ATA!!" | dd of=build/disk.img conv=notrunc
+	
+run: $(TARGET) build/disk.img
+	qemu-system-i386 -kernel $(TARGET) -drive file=build/disk.img,format=raw,if=ide
+
 clean:
 	@find $(BUILD_DIR) -mindepth 1 ! -name ".gitkeep" -delete
+	rm -f build/disk.img
 
-# ==================================================================
-# Regras especiais
-# ==================================================================
-.PHONY: clean install
+.PHONY: clean install run

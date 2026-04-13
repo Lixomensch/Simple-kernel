@@ -10,6 +10,25 @@ void set_terminal_color(uint8_t color) {
     terminal_color = color;
 }
 
+void kernel_hex_dump(uint8_t* ptr, int count) {
+    char buf[16];
+    for (int i=0; i<count; i++) {
+        uint8_t val = ptr[i];
+        
+        
+        uint8_t h = val >> 4;
+        buf[0] = (h > 9) ? (h - 10) + 'A' : h + '0';
+        
+        uint8_t l = val & 0x0F;
+        buf[1] = (l > 9) ? (l - 10) + 'A' : l + '0';
+        buf[2] = ' ';
+        buf[3] = '\0';
+        kprint(buf);
+        
+        if ((i + 1) % 16 == 0) kprint("\n");
+    }
+}
+
 void update_hardware_cursor()
 {
     uint16_t pos = cursor_y * VGA_WIDTH + cursor_x;
