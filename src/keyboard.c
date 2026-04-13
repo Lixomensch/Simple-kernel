@@ -8,25 +8,25 @@ static int shift_pressed = 0;
 static int capslock_enabled = 0;
 
 static const char scancode_map[128] = {
-    0, 27, '1', '2', '3', '4', '5', '6',     // 0x00 - 0x07
-    '7', '8', '9', '0', '-', '=', '\b',      // 0x08 - 0x0E
-    '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', // 0x0F - 0x16
-    'i', 'o', 'p', 0, '[', '\n', 0, 'a',     // 0x17 - 0x1E
-    's', 'd', 'f', 'g', 'h', 'j', 'k', 'l',  // 0x1F - 0x26
-    '0', '~', ']', 0, '\\', 'z', 'x', 'c',   // 0x27 - 0x2E
-    'v', 'b', 'n', 'm', ',', '.', ';', 0,    // 0x2F - 0x36
-    '*', 0, ' ', 0, 0, 0, 0, 0,              // 0x37 - 0x3E
+    0, 27, '1', '2', '3', '4', '5', '6',     
+    '7', '8', '9', '0', '-', '=', '\b',      
+    '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 
+    'i', 'o', 'p', 0, '[', '\n', 0, 'a',     
+    's', 'd', 'f', 'g', 'h', 'j', 'k', 'l',  
+    '0', '~', ']', 0, '\\', 'z', 'x', 'c',   
+    'v', 'b', 'n', 'm', ',', '.', ';', 0,    
+    '*', 0, ' ', 0, 0, 0, 0, 0,              
 };
 
 static const char shift_map[128] = {
-    0, 27, '!', '@', '#', '$', '%', 0,       // 0x00 - 0x07
-    '&', '*', '(', ')', '_', '+', '\b',      // 0x08 - 0x0E
-    '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', // 0x0F - 0x16
-    'I', 'O', 'P', '`', '{', '\n', 0, 'A',   // 0x17 - 0x1E
-    'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L',  // 0x1F - 0x26
-    0, '^', '}', 0, '|', 'Z', 'X', 'C',      // 0x27 - 0x2E
-    'V', 'B', 'N', 'M', '<', '>', ':', 0,    // 0x2F - 0x36
-    '*', 0, ' ', 0, 0, 0, 0, 0,              // 0x37 - 0x3E
+    0, 27, '!', '@', '#', '$', '%', 0,       
+    '&', '*', '(', ')', '_', '+', '\b',      
+    '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 
+    'I', 'O', 'P', '`', '{', '\n', 0, 'A',   
+    'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L',  
+    0, '^', '}', 0, '|', 'Z', 'X', 'C',      
+    'V', 'B', 'N', 'M', '<', '>', ':', 0,    
+    '*', 0, ' ', 0, 0, 0, 0, 0,              
 };
 
 #define SC_SHIFT_LEFT 0x2A
@@ -35,31 +35,28 @@ static const char shift_map[128] = {
 
 #define KEY_RELEASE(sc) ((sc) & 0x80)
 
-char keyboard_handler(void)
+void keyboard_handler(registers_t *regs)
 {
-    uint8_t scancode = 0;
-    while ((inb(KEYBOARD_STATUS_PORT) & 0x01) == 0)
-        ;
-    scancode = inb(KEYBOARD_DATA_PORT);
+    uint8_t scancode = inb(KEYBOARD_DATA_PORT);
 
     if (KEY_RELEASE(scancode))
     {
         scancode &= 0x7F;
         if (scancode == SC_SHIFT_LEFT || scancode == SC_SHIFT_RIGHT)
             shift_pressed = 0;
-        return 0;
+        return;
     }
 
     if (scancode == SC_SHIFT_LEFT || scancode == SC_SHIFT_RIGHT)
     {
         shift_pressed = 1;
-        return 0;
+        return;
     }
 
     if (scancode == SC_CAPSLOCK)
     {
         capslock_enabled = !capslock_enabled;
-        return 0;
+        return;
     }
 
     char c = 0;
@@ -79,5 +76,13 @@ char keyboard_handler(void)
         }
     }
 
-    return c;
+    if (c) {
+        
+        extern void input_handle_key(char c);
+        input_handle_key(c);
+    }
+}
+
+void init_keyboard() {
+    register_interrupt_handler(33, keyboard_handler);
 }

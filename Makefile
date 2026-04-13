@@ -10,7 +10,7 @@ TARGET = build/kernel.bin
 DEBUG = -g
 OPT = -O1
 WARN = -Wall -Werror
-CFLAGS = $(DEBUG) $(OPT) $(WARN) -m32 -ffreestanding -fno-builtin -fno-exceptions
+CFLAGS = $(DEBUG) $(OPT) $(WARN) -m32 -ffreestanding -fno-builtin -fno-exceptions -fno-stack-protector
 ASFLAGS = --32
 LDFLAGS = -melf_i386
 

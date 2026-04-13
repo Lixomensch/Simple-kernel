@@ -1,8 +1,5 @@
 #include "../include/io.h"
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-
 void outb(uint16_t port, uint8_t value)
 {
     asm volatile("outb %0, %1" : : "a"(value), "Nd"(port));

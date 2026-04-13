@@ -1,6 +1,5 @@
 #include "../include/input.h"
 #include "../include/kernel.h"
-#include "../include/keyboard.h"
 #include "../include/command.h"
 
 static char input_buffer[128];
@@ -12,9 +11,8 @@ void input_init()
     input_index = 0;
 }
 
-void input_read()
+void input_handle_key(char c)
 {
-    char c = keyboard_handler();
     if (!c)
         return;
 

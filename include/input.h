@@ -4,6 +4,6 @@
 #define INPUT_BUFFER_SIZE 128
 
 void input_init();
-void input_read();
+void input_handle_key(char c);
 
-#endif // INPUT_H
+#endif 

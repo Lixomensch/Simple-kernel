@@ -2,7 +2,9 @@
 #define KEYBOARD_H
 
 #include <stdint.h>
+#include "isr.h"
 
-char keyboard_handler(void);
+void keyboard_handler(registers_t *regs);
+void init_keyboard();
 
 #endif

@@ -1,11 +1,8 @@
 #pragma once
 
 #include <stdint.h>
-
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
+#include <stddef.h>
+#include <stdbool.h>
 
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
@@ -15,10 +12,12 @@ typedef unsigned long long uint64_t;
 
 extern int cursor_x;
 extern int cursor_y;
+extern uint8_t terminal_color;
 
 void move_cursor(int x, int y);
 void advance_cursor();
 void clear_screen();
+void set_terminal_color(uint8_t color);
 uint8_t inb(uint16_t port);
 void outb(uint16_t port, uint8_t value);
 uint8_t read_key_scancode();
