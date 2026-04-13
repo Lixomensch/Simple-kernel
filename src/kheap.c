@@ -67,31 +67,39 @@ void* kmalloc(size_t size) {
         return (void*)((uint8_t*)best_fit + sizeof(block_header_t));
     }
 
-    
-    
-    void* phys = pmm_alloc_frame();
-    if (!phys) {
-        kprint("PANIC: KHEAP Out of Physical Memory!\n");
-        return NULL;
-    }
-    
-    uint32_t virt = heap_current_top;
-    vmm_map_page(phys, (void*)(uintptr_t)virt);
-    heap_current_top += 4096;
-
-    
-    current = heap_start;
-    while (current->next != NULL) {
-        current = current->next;
+    block_header_t* last = heap_start;
+    while (last->next != NULL) {
+        last = last->next;
     }
 
-    block_header_t* expanded = (block_header_t*)(uintptr_t)virt;
-    expanded->size = 4096 - sizeof(block_header_t);
-    expanded->free = true;
-    expanded->next = NULL;
-    current->next = expanded;
+    uint32_t pages_needed;
+    if (last->free) {
+        pages_needed = (size - last->size + 4095) / 4096;
+    } else {
+        pages_needed = (size + sizeof(block_header_t) + 4095) / 4096;
+    }
 
-    
+    uint32_t virt_start = heap_current_top;
+    for (uint32_t i = 0; i < pages_needed; i++) {
+        void* phys = pmm_alloc_frame();
+        if (!phys) {
+            kprint("PANIC: KHEAP Out of Physical Memory!\n");
+            return NULL;
+        }
+        vmm_map_page(phys, (void*)(uintptr_t)heap_current_top);
+        heap_current_top += 4096;
+    }
+
+    if (last->free) {
+        last->size += (pages_needed * 4096);
+    } else {
+        block_header_t* expanded = (block_header_t*)(uintptr_t)virt_start;
+        expanded->size = (pages_needed * 4096) - sizeof(block_header_t);
+        expanded->free = true;
+        expanded->next = NULL;
+        last->next = expanded;
+    }
+
     return kmalloc(size);
 }
 

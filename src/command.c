@@ -22,6 +22,8 @@ void command_help(const char *args) {
   kprint(" - uptime : mostra tempo ligado\n");
   kprint(" - color  : muda a cor do texto\n");
   kprint(" - meminfo: mostra memoria disponivel\n");
+  kprint(" - touch  : cria um arquivo vazio\n");
+  kprint(" - write  : escreve em um arquivo (ex: write a.txt texto)\n");
   kprint(" - ls     : lista arquivos\n");
   kprint(" - cat    : le o conteudo de um arquivo\n");
   kprint(" - reboot : reinicia o sistema\n");
@@ -72,20 +74,76 @@ void command_meminfo(const char *args) {
   kprint(" KB\n");
 }
 
+void command_touch(const char *args) {
+  if (!fs_root) return;
+  if (!args || args[0] == '\0') {
+    kprint("Uso: touch <arquivo>\n");
+    return;
+  }
+
+  char filename[128];
+  int i = 0;
+  while(args[i] && args[i] != ' ' && i < 127) {
+    filename[i] = args[i];
+    i++;
+  }
+  filename[i] = '\0';
+
+  if (vfs_create(fs_root, filename)) {
+    kprint("Arquivo criado: ");
+    kprint(filename);
+    kprint("\n");
+  } else {
+    kprint("Falha ao criar arquivo (ou ja existe).\n");
+  }
+}
+
+void command_write(const char *args) {
+  if (!fs_root) return;
+  
+  char filename[128];
+  int i = 0;
+  while(args[i] && args[i] != ' ' && i < 127) {
+    filename[i] = args[i];
+    i++;
+  }
+  filename[i] = '\0';
+  
+  if (filename[0] == '\0') {
+    kprint("Uso: write <arquivo> <texto...>\n");
+    return;
+  }
+
+  fs_node_t *node = vfs_find(fs_root, filename);
+  if (!node) {
+    kprint("Erro: Arquivo nao encontrado. Use 'touch' primeiro.\n");
+    return;
+  }
+
+  const char *text = args + i;
+  while(*text == ' ') text++;
+
+  uint32_t len = 0;
+  while(text[len]) len++;
+
+  uint32_t written = vfs_write(node, text, len);
+  if (written > 0) {
+    kprint("Escritos ");
+    char num[16];
+    itoa(written, num);
+    kprint(num);
+    kprint(" bytes com sucesso.\n");
+  } else {
+    kprint("Falha ao escrever (arquivo cheio ou erro no VFS).\n");
+  }
+}
+
 void command_ls(const char *args) {
   if (!fs_root) {
     kprint("Nenhum sistema de arquivos montado.\n");
     return;
   }
-  
-  int i = 0;
-  struct dirent *node = 0;
-  while ((node = vfs_readdir(fs_root, i)) != 0) {
-    kprint(" ");
-    kprint(node->name);
-    kprint("\n");
-    i++;
-  }
+  vfs_list(fs_root);
 }
 
 void command_cat(const char *args) {
@@ -95,7 +153,6 @@ void command_cat(const char *args) {
     return;
   }
   
-  
   char filename[128];
   int i=0;
   while(args[i] && args[i] != ' ' && i < 127) {
@@ -104,7 +161,7 @@ void command_cat(const char *args) {
   }
   filename[i] = '\0';
   
-  fs_node_t *fsnode = vfs_finddir(fs_root, filename);
+  fs_node_t *fsnode = vfs_find(fs_root, filename);
   if (!fsnode) {
     kprint("Arquivo não encontrado.\n");
     return;
@@ -116,10 +173,11 @@ void command_cat(const char *args) {
   }
   
   char buffer[512];
-  uint32_t sz = vfs_read(fsnode, 0, 511, (uint8_t*)buffer);
-  buffer[sz] = '\0';
-  
-  kprint(buffer);
+  uint32_t sz = vfs_read(fsnode, buffer, 511);
+  if (sz > 0) {
+      buffer[sz] = '\0';
+      kprint(buffer);
+  }
   kprint("\n");
 }
 
@@ -128,7 +186,8 @@ Command command_table[] = {
     {"echo", command_echo},     {"reboot", command_reboot},
     {"uptime", command_uptime}, {"color", command_color},
     {"meminfo", command_meminfo}, {"ls", command_ls},
-    {"cat", command_cat},
+    {"cat", command_cat},       {"touch", command_touch},
+    {"write", command_write},
 };
 
 const int command_count = sizeof(command_table) / sizeof(Command);

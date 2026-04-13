@@ -1,108 +1,143 @@
 #include "../include/ramfs.h"
-#include "../include/kernel.h"
+#include "../include/vfs.h"
 #include "../include/kheap.h"
 #include "../include/string.h"
-#include "../include/vfs.h"
+#include "../include/kernel.h"
 
 static fs_node_t *ramfs_root_node;
-static fs_node_t *hello_node;
 
-static char hello_content[] =
-    "Ola Mundo! Este e o primeiro arquivo aberto pelo VFS.\nEle vive apenas na "
-    "memoria (RAMFS)!\n";
-static struct dirent dirent_hello;
+static uint32_t ramfs_write(fs_node_t *node, const char *data, uint32_t size) {
+    if ((node->flags & 0x07) != FS_FILE) return 0;
+    if (!node->data) return 0;
 
-static uint32_t ramfs_read(fs_node_t *node, uint32_t offset, uint32_t size,
-                           uint8_t *buffer) {
-  if (node == hello_node) {
-    if (offset > node->length)
-      return 0;
-    if (offset + size > node->length) {
-      size = node->length - offset;
-    }
-
-    char *ptr = hello_content + offset;
-    for (uint32_t i = 0; i < size; i++) {
-      buffer[i] = ptr[i];
-    }
-    return size;
-  }
-  return 0; 
-}
-
-static struct dirent *ramfs_readdir(fs_node_t *node, uint32_t index) {
-  if (node == ramfs_root_node) {
-    if (index == 0) {
-      
-      int i = 0;
-      while (hello_node->name[i]) {
-        dirent_hello.name[i] = hello_node->name[i];
-        i++;
-      }
-      dirent_hello.name[i] = '\0';
-      dirent_hello.ino = 1;
-      return &dirent_hello;
+    char *buf = (char*)node->data;
+    
+    uint32_t offset = node->length;
+    uint32_t to_write = size;
+    
+    if (offset + to_write > 4095) {
+        to_write = 4095 - offset;
     }
     
-    return NULL;
-  }
-  return NULL;
+    for(uint32_t i=0; i<to_write; i++) {
+        buf[offset + i] = data[i];
+    }
+    node->length += to_write;
+    
+    return to_write;
 }
 
-static fs_node_t *ramfs_finddir(fs_node_t *node, char *name) {
-  if (node == ramfs_root_node) {
-    if (strcmp(name, "hello.txt") == 0) {
-      return hello_node;
+static uint32_t ramfs_read(fs_node_t *node, char *buffer, uint32_t size) {
+    if ((node->flags & 0x07) != FS_FILE) return 0;
+    if (!node->data) return 0;
+
+    char *buf = (char*)node->data;
+    
+    uint32_t to_read = size;
+    if (to_read > node->length) {
+        to_read = node->length;
     }
-  }
-  return NULL;
+    
+    for(uint32_t i=0; i<to_read; i++) {
+        buffer[i] = buf[i];
+    }
+    
+    return to_read;
+}
+
+static fs_node_t* ramfs_find(fs_node_t *dir, const char *name) {
+    fs_node_t *child = dir->children;
+    while (child) {
+        if (strcmp(child->name, name) == 0) {
+            return child;
+        }
+        child = child->next;
+    }
+    return NULL;
+}
+
+static void ramfs_list(fs_node_t *dir) {
+    fs_node_t *child = dir->children;
+    while (child) {
+        kprint(" ");
+        kprint(child->name);
+        kprint(" (");
+        char len_buf[16];
+        itoa(child->length, len_buf);
+        kprint(len_buf);
+        kprint(" bytes)\n");
+        child = child->next;
+    }
+}
+
+static fs_node_t* ramfs_create(fs_node_t* dir, const char* name) {
+    if ((dir->flags & 0x07) != FS_DIRECTORY) return NULL;
+    
+    if (ramfs_find(dir, name)) {
+        kprint("Erro: Arquivo ja existe.\n");
+        return NULL;
+    }
+
+    fs_node_t *new_node = (fs_node_t*)kmalloc(sizeof(fs_node_t));
+    if (!new_node) return NULL;
+
+    int i = 0;
+    while(name[i] && i < 63) {
+        new_node->name[i] = name[i];
+        i++;
+    }
+    new_node->name[i] = '\0';
+
+    new_node->length = 0;
+    new_node->flags = FS_FILE;
+    new_node->data = kmalloc(4096); 
+    
+    char *buf = (char*)new_node->data;
+    for(int j=0; j<4096; j++) buf[j] = 0;
+
+    new_node->parent = dir;
+    new_node->children = NULL;
+    new_node->next = NULL;
+
+    new_node->create = 0;
+    new_node->write = &ramfs_write;
+    new_node->read = &ramfs_read;
+    new_node->find = 0;
+    new_node->list = 0;
+
+    if (dir->children == NULL) {
+        dir->children = new_node;
+    } else {
+        fs_node_t *last = dir->children;
+        while (last->next != NULL) {
+            last = last->next;
+        }
+        last->next = new_node;
+    }
+
+    return new_node;
 }
 
 void ramfs_init() {
-  
-  ramfs_root_node = (fs_node_t *)kmalloc(sizeof(fs_node_t));
-  if (!ramfs_root_node)
-    kprint("PANIC RAMFS ALLOC\n");
+    ramfs_root_node = (fs_node_t*)kmalloc(sizeof(fs_node_t));
+    if (!ramfs_root_node) kprint("PANIC RAMFS ALLOC\n");
+    
+    char rootname[] = "ramroot";
+    for(int i=0; rootname[i]; i++) ramfs_root_node->name[i] = rootname[i];
+    ramfs_root_node->name[sizeof(rootname)] = '\0';
+    
+    ramfs_root_node->length = 0;
+    ramfs_root_node->flags = FS_DIRECTORY;
+    ramfs_root_node->data = NULL;
+    ramfs_root_node->parent = NULL;
+    ramfs_root_node->next = NULL;
+    ramfs_root_node->children = NULL;
 
-  char rootname[] = "ramroot";
-  for (int i = 0; rootname[i]; i++)
-    ramfs_root_node->name[i] = rootname[i];
-  ramfs_root_node->name[sizeof(rootname)] = '\0';
+    ramfs_root_node->create = &ramfs_create;
+    ramfs_root_node->write = 0;
+    ramfs_root_node->read = 0;
+    ramfs_root_node->find = &ramfs_find;
+    ramfs_root_node->list = &ramfs_list;
 
-  ramfs_root_node->flags = FS_DIRECTORY;
-  ramfs_root_node->read = 0;
-  ramfs_root_node->write = 0;
-  ramfs_root_node->open = 0;
-  ramfs_root_node->close = 0;
-  ramfs_root_node->readdir = &ramfs_readdir;
-  ramfs_root_node->finddir = &ramfs_finddir;
-  ramfs_root_node->ptr = 0;
-  ramfs_root_node->impl = 0;
-
-  
-  hello_node = (fs_node_t *)kmalloc(sizeof(fs_node_t));
-  char filename[] = "hello.txt";
-  for (int i = 0; filename[i]; i++)
-    hello_node->name[i] = filename[i];
-  hello_node->name[sizeof(filename)] = '\0';
-
-  hello_node->flags = FS_FILE;
-
-  
-  uint32_t len = 0;
-  while (hello_content[len])
-    len++;
-  hello_node->length = len;
-
-  hello_node->read = &ramfs_read;
-  hello_node->write = 0;
-  hello_node->open = 0;
-  hello_node->close = 0;
-  hello_node->readdir = 0;
-  hello_node->finddir = 0;
-  hello_node->ptr = 0;
-  hello_node->impl = 0;
-
-  
-  fs_root = ramfs_root_node;
+    fs_root = ramfs_root_node;
 }
