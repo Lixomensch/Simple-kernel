@@ -5,6 +5,7 @@ OUTPUT_ARCH(i386:i386)
 SECTIONS
 {
   . = 0x0100000;
+  kernel_start = .;
 
   .text :
   {
@@ -27,6 +28,8 @@ SECTIONS
   {
     *(.bss)
   }
+  
+  kernel_end = .;
 
   /DISCARD/ :
   {
