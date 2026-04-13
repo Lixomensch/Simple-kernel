@@ -43,4 +43,4 @@ struct multiboot_mmap_entry {
 
 typedef struct multiboot_mmap_entry multiboot_memory_map_t;
 
-#endif 
+#endif

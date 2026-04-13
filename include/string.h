@@ -1,8 +1,0 @@
-#ifndef STRING_H
-#define STRING_H
-
-int strcmp(const char *s1, const char *s2);
-int strncmp(const char *s1, const char *s2, unsigned int n);
-void itoa(int num, char *str);
-
-#endif 

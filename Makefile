@@ -1,72 +1,100 @@
 # ==================================================================
-# Configurações do compilador e flags
+# Simple-kernel Makefile
 # ==================================================================
-CC = gcc
-AS = as
-LD = ld
-TARGET = build/kernel.bin
+CC      = gcc
+AS      = as
+LD      = ld
 
-# Flags de compilação
-DEBUG = -g
-OPT = -O1
-WARN = -Wall -Werror
-CFLAGS = $(DEBUG) $(OPT) $(WARN) -m32 -ffreestanding -fno-builtin -fno-exceptions -fno-stack-protector
+# === Flags ===
+DEBUG   = -g
+OPT     = -O1
+WARN    = -Wall -Werror
+CFLAGS  = $(DEBUG) $(OPT) $(WARN) -m32 -ffreestanding -fno-builtin \
+          -fno-exceptions -fno-stack-protector \
+          -I.
 ASFLAGS = --32
 LDFLAGS = -melf_i386
 
-# ==================================================================
-# Caminhos e diretórios
-# ==================================================================
-BUILD_DIR = build
-SRC_DIR = src
+# === Directories ===
+BUILD   = build
+TARGET  = $(BUILD)/kernel.bin
+LINKER  = arch/x86/boot/linker.ld
 
 # ==================================================================
-# Arquivos de fontes e objetos
+# Sources by module
 # ==================================================================
-C_SRCS = $(wildcard $(SRC_DIR)/*.c)
-S_SRCS = $(wildcard $(SRC_DIR)/*.s)
 
-# Criar variáveis de objetos, com a pasta de objetos
-C_OBJS = $(C_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
-S_OBJS = $(S_SRCS:$(SRC_DIR)/%.s=$(BUILD_DIR)/%.o)
-OBJS = $(C_OBJS) $(S_OBJS)
+# Architecture (x86)
+ARCH_S  = arch/x86/boot/loader.s \
+          arch/x86/cpu/interrupts.s
+ARCH_C  = arch/x86/cpu/idt.c \
+          arch/x86/cpu/isr.c \
+          arch/x86/cpu/pic.c \
+          arch/x86/io/io.c
+
+# Kernel core
+KERNEL_C = kernel/main.c \
+           kernel/panic.c \
+           kernel/printk.c \
+           kernel/mm/pmm.c \
+           kernel/mm/paging.c \
+           kernel/mm/kheap.c
+
+# Drivers
+DRIVER_C = drivers/video/vga.c \
+           drivers/keyboard/keyboard.c \
+           drivers/timer/pit.c \
+           drivers/ata/ata.c
+
+# Filesystem
+FS_C    = fs/vfs.c \
+          fs/ramfs/ramfs.c
+
+# Shell
+SHELL_C = shell/shell.c \
+          shell/command.c
+
+# Library
+LIB_C   = lib/string.c
 
 # ==================================================================
-# Compilação de arquivos Assembly
+# Object files
 # ==================================================================
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.s | $(BUILD_DIR)
+ALL_C   = $(ARCH_C) $(KERNEL_C) $(DRIVER_C) $(FS_C) $(SHELL_C) $(LIB_C)
+ALL_S   = $(ARCH_S)
+C_OBJS  = $(ALL_C:%.c=$(BUILD)/%.o)
+S_OBJS  = $(ALL_S:%.s=$(BUILD)/%.o)
+OBJS    = $(C_OBJS) $(S_OBJS)
+
+# ==================================================================
+# Build rules
+# ==================================================================
+all: $(TARGET)
+
+$(TARGET): $(LINKER) $(OBJS)
+	@mkdir -p $(dir $@)
+	$(LD) $(LDFLAGS) -T $< -o $@ $(OBJS)
+
+$(BUILD)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/%.o: %.s
+	@mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) -o $@ $<
 
 # ==================================================================
-# Compilação de arquivos C
+# Disk and Run
 # ==================================================================
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+$(BUILD)/disk.img:
+	@mkdir -p $(BUILD)
+	dd if=/dev/zero of=$@ bs=1M count=1
+	printf "MENSAGEM SECRETA NO HD VIA SETOR ZERO ATA!!" | dd of=$@ conv=notrunc
 
-# ==================================================================
-# Linkagem
-# ==================================================================
-$(TARGET): linker.ld $(OBJS) | $(BUILD_DIR)
-	$(LD) $(LDFLAGS) -T $< -o $@ $(OBJS)
-
-# ==================================================================
-# Instalação
-# ==================================================================
-install: $(TARGET)
-	sudo cp $(TARGET) /boot/kernel.bin
-
-# ==================================================================
-# Disco e Execução
-# ==================================================================
-build/disk.img: | $(BUILD_DIR)
-	dd if=/dev/zero of=build/disk.img bs=1M count=1
-	printf "MENSAGEM SECRETA NO HD VIA SETOR ZERO ATA!!" | dd of=build/disk.img conv=notrunc
-	
-run: $(TARGET) build/disk.img
-	qemu-system-i386 -kernel $(TARGET) -drive file=build/disk.img,format=raw,if=ide
+run: $(TARGET) $(BUILD)/disk.img
+	qemu-system-i386 -kernel $(TARGET) -drive file=$(BUILD)/disk.img,format=raw,if=ide
 
 clean:
-	@find $(BUILD_DIR) -mindepth 1 ! -name ".gitkeep" -delete
-	rm -f build/disk.img
+	rm -rf $(BUILD)
 
-.PHONY: clean install run
+.PHONY: all clean run

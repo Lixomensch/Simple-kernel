@@ -1,3 +1,11 @@
-# Ignore files within directories
-.vscode
-build/**
+# Build artifacts
+build/
+!build/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# OS generated
+.DS_Store
+Thumbs.db
